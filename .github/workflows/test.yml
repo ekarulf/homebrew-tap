@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-26, ubuntu-24.04]
+        os: [macos-26, ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -52,17 +52,20 @@ jobs:
             brew audit --strict ekarulf/tap/keystone
             brew test ekarulf/tap/keystone
           fi
-      - name: Test qcat release source without hardware identities
+      - name: Verify installed release binaries
         shell: bash
         run: |
-          brew unpack --destdir="$RUNNER_TEMP/qcat-source" ekarulf/tap/qcat
-          sources=("$RUNNER_TEMP/qcat-source"/qcat-*)
-          test "${#sources[@]}" -eq 1
-          cd "${sources[0]}"
-          go mod verify
-          go vet -mod=readonly ./...
-          go test -mod=readonly -race -timeout 10m ./...
-          cd third_party/tailcat
-          go mod verify
-          go vet -mod=readonly ./...
-          go test -mod=readonly -race -timeout 10m ./...
+          test -z "$(brew deps --include-build ekarulf/tap/qcat)"
+          mkdir -p "$RUNNER_TEMP/qcat-release"
+          tar -xzf "$(brew --cache ekarulf/tap/qcat)" -C "$RUNNER_TEMP/qcat-release"
+          packages=("$RUNNER_TEMP/qcat-release"/qcat-*)
+          test "${#packages[@]}" -eq 1
+          package="${packages[0]}"
+          prefix="$(brew --prefix ekarulf/tap/qcat)"
+          cmp "$package/qcat" "$prefix/bin/qcat"
+          cmp "$package/BUILD_COMMIT" "$prefix/share/doc/qcat/BUILD_COMMIT"
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            cmp "$package/qcat-se" "$prefix/libexec/qcat-se"
+            codesign --verify --strict "$prefix/bin/qcat"
+            codesign --verify --strict "$prefix/libexec/qcat-se"
+          fi

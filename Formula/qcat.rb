@@ -1,11 +1,18 @@
 class Qcat < Formula
   desc "Hardware-backed post-quantum encrypted transport"
   homepage "https://github.com/ekarulf/quantumcat"
-  url "https://github.com/ekarulf/quantumcat/archive/refs/tags/v0.0.6.tar.gz"
-  sha256 "ee50087009d532478c74e5f559cd5a188f124deeb90e66fa12ce25d31c30625b"
+  if OS.mac?
+    url "https://github.com/ekarulf/quantumcat/releases/download/v0.0.6/qcat-darwin-arm64.tar.gz"
+    sha256 "08b06a036b3cb5bef638d1a95e492c6908086a07f1c1d4cf95196ad2e86caeef"
+  elsif Hardware::CPU.arm?
+    url "https://github.com/ekarulf/quantumcat/releases/download/v0.0.6/qcat-linux-arm64.tar.gz"
+    sha256 "ba77393b7d2609f976221cd038f481891dcff85d69157c4c345ef93c29d2dc4d"
+  else
+    url "https://github.com/ekarulf/quantumcat/releases/download/v0.0.6/qcat-linux-amd64.tar.gz"
+    sha256 "c2843965f5f0f07db33632eaa86f3ba6773cd27d951e0b098c0d5b35c9374e6e"
+  end
   license "Apache-2.0"
-
-  depends_on "go" => :build
+  revision 1
 
   on_macos do
     depends_on arch: :arm64
@@ -13,22 +20,14 @@ class Qcat < Formula
   end
 
   def install
-    ENV["CGO_ENABLED"] = "0"
-    ldflags = "-X github.com/ekarulf/quantumcat/internal/version.Version=v#{version}"
-    system "go", "build", "-mod=readonly", *std_go_args(ldflags:), "./cmd/qcat"
-
+    bin.install "qcat"
     if OS.mac?
-      libexec.mkpath
-      system "xcrun", "swiftc", "-O", "-target", "arm64-apple-macosx26.0",
-             "-module-cache-path", buildpath/".swift-cache",
-             "-o", libexec/"qcat-se", "swift/qcat-se.swift"
-      system "codesign", "--force", "--sign", "-", bin/"qcat"
-      system "codesign", "--force", "--sign", "-", libexec/"qcat-se"
+      libexec.install "qcat-se"
       system "codesign", "--verify", "--strict", bin/"qcat"
       system "codesign", "--verify", "--strict", libexec/"qcat-se"
     end
 
-    doc.install "README.md", "PROTOCOL.md"
+    doc.install "README.md", "BUILD_COMMIT", "BUILD_TOOLCHAIN"
     (pkgshare/"deploy").install Dir["deploy/*"]
   end
 
@@ -45,7 +44,9 @@ class Qcat < Formula
   end
 
   test do
-    assert_match "v#{version}", shell_output("#{bin}/qcat version")
+    version_output = shell_output("#{bin}/qcat version")
+    assert_match "v#{version}", version_output
+    assert_match "commit    #{(doc/"BUILD_COMMIT").read.strip}", version_output
     assert_match "identity", shell_output("#{bin}/qcat --help")
     if OS.mac?
       assert_predicate libexec/"qcat-se", :executable?
