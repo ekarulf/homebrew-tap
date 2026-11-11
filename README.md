@@ -1,6 +1,6 @@
 # Erik's Homebrew tap
 
-Install [Quantumcat](https://github.com/ekarulf/quantumcat) and
+Install [Quantumcat](https://github.com/ekarulf/quantumcat) or
 [Keystone](https://github.com/ekarulf/keystone):
 
 ```sh
@@ -8,95 +8,62 @@ brew install ekarulf/tap/qcat
 brew install ekarulf/tap/keystone
 ```
 
-Fully qualified install names select this tap even if another tap has a package
-with the same name. On Homebrew versions that require tap trust, these explicit
-install commands trust only the named formulae, not every formula in the tap.
-
-## Packages
-
-- **qcat 0.0.5:** builds from checksum-pinned source with the Homebrew compatibility
-  patch embedded in `Formula/qcat.rb`. Supports Apple Silicon macOS 26+ and Linux.
-  Building on macOS also requires Apple command-line tools with a macOS 26 or newer
-  SDK (`xcode-select --install` if the tools are absent). Go is a build dependency.
-- **keystone 0.1.3:** installs the official, checksum-verified Apple Silicon macOS
-  release archive. Intel macOS and Linux are not supported by that release.
-
-Installing either formula does **not** create identities, enroll devices, request
-cloud credentials, edit configuration, or start background services. Hardware
-signing still requires compatible hardware and separate setup. Formula smoke
-tests do not exercise real identities or cloud access. qcat layout tests use a
-fake protocol helper, never the Secure Enclave helper.
-
-## qcat's private helper
-
-Only `qcat` is linked onto `PATH`. On macOS its `qcat-se` helper lives at:
+Update to the latest releases packaged by this tap:
 
 ```sh
-$(brew --prefix qcat)/libexec/qcat-se
+brew update
+brew upgrade ekarulf/tap/qcat ekarulf/tap/keystone
 ```
 
-The patched executable resolves its own Homebrew keg and finds the helper from
-that same installation without a wrapper or environment override. A running
-process keeps its startup keg; restart your qcat services after upgrading and
-before removing old versions with `brew cleanup`.
+Run the upgrade command with just the package you installed if you only use one.
+The formulae use checksummed releases and do not pin your installed versions.
 
-The helper must be a regular executable owned by the current user or root and
-not writable by group or others. All traversed helper links and directories are
-checked. Ordinary unprivileged qcat invocations permit group-writable ancestors
-shared with the qcat executable, because that group can already replace qcat
-itself. This trusts those installation-group members to replace the helper too.
-Helper-only group-writable directories and non-sticky world-writable ancestors
-are rejected. The existing trusted-sticky-directory exception is preserved.
-These checks validate POSIX ownership/modes, not ACLs.
+## Requirements
 
-Set-ID helper invocation is rejected. Root ignores helper environment overrides
-and does not use the shared-directory exception; `sudo qcat` will not use a
-normal user-owned Homebrew helper. Privileged Secure Enclave deployments need a
-separate root-owned installation. The formula does not change Homebrew ownership,
-permissions, system security settings, or qcat's stricter private-data checks.
+- **qcat:** Linux, or Apple Silicon with macOS 26+ and Apple's command-line tools
+  with a macOS 26+ SDK. Builds from the upstream release using Go. No tap patch.
+- **keystone:** Apple Silicon macOS. Installs the official release binary.
 
-### Patch provenance
+Installation does not create identities, enroll devices, change credentials or
+configuration, or start services. Hardware signing requires separate setup.
 
-Upstream v0.0.5 is commit
-[`961226e51ffc95b076cbe03a9a366a2997965b70`](https://github.com/ekarulf/quantumcat/commit/961226e51ffc95b076cbe03a9a366a2997965b70).
-Its source archive SHA-256 is
-`f69762b560f9dd59596aa71a646e4b7ab947ae08fcebfaa5b9732ab6dc1509dd`.
+## qcat helper
 
-The inline patch adds helper discovery, executable-path validation, regression
-tests, and matching upstream documentation. It was reconstructed from the prior
-Homebrew work and revalidated against that exact source, rather than represented
-as the original lost commit or a published upstream release. Its SHA-256 is
-`d212124ee5645307252394171d48d1c0a607f7a50bf607c666bab3598bbc9b60`.
-It is versioned with this tap and never downloaded from a mutable branch:
+On macOS, only `qcat` is linked onto `PATH`. Its Secure Enclave helper stays in
+`$(brew --prefix qcat)/libexec/qcat-se` and is found automatically in the same keg.
+Restart running qcat services after upgrades, before removing old kegs with
+`brew cleanup`.
 
-```sh
-sed '1,/^__END__$/d' Formula/qcat.rb | shasum -a 256
-```
+Helpers must be owned by root or the current user and must not be group- or
+world-writable. Symlinks and directories are checked too. Unprivileged qcat trusts
+group-writable ancestors shared with its own executable, including Homebrew's
+installation group, but rejects helper-only writable directories. These are
+POSIX ownership/mode checks, not ACL checks.
 
-A later upstream release can replace this patch after the same layout and
-permission tests pass. The upstream v0.0.5 release binaries are not modified.
+Set-ID use is rejected. Root ignores helper environment overrides and requires a
+separate root-owned installation; do not use `sudo qcat` with a user-owned
+Homebrew helper. Private-data checks remain stricter. See the
+[upstream installation guide](https://github.com/ekarulf/quantumcat#install)
+for details.
 
-## Keystone consumer paths
+## Keystone consumers
 
-For an AWS `credential_process`, use the stable opt path rather than a versioned
-Cellar path. For the standard Apple Silicon prefix:
+For AWS `credential_process`, use the stable opt path. On a standard Apple Silicon
+installation:
 
 ```ini
 credential_process = /opt/homebrew/opt/keystone/bin/keystone credential-process --profile YOUR_PROFILE
 ```
 
-Use `brew --prefix keystone` to find the right prefix for a custom installation.
-Keep Keystone configuration, enrolled identities, and token caches outside the
-Cellar so upgrades and cleanup cannot remove them.
+Use `brew --prefix keystone` for a custom prefix. Keep configuration, identities,
+and token caches outside the Cellar.
 
-The example Google consumer adapter has its own stricter executable-path checks.
-The v0.1.3 adapter does not accept normal Homebrew symlink/group-writable layouts.
-Installing this CLI does not update or relax that adapter. Existing Google
-consumers should keep their current trusted executable path until they adopt a
-reviewed Homebrew-aware adapter. Do not use an unsafe-permissions flag or change
-Homebrew directory permissions as a workaround.
+The v0.1.3 Google consumer adapter does not accept normal Homebrew symlink and
+group-writable layouts. Keep its existing trusted executable path until using a
+reviewed Homebrew-aware adapter. Do not bypass permission checks or change
+Homebrew directory permissions to work around this.
 
-## Validation
+## Checks
 
 ```sh
 brew audit --strict ekarulf/tap/qcat ekarulf/tap/keystone
@@ -104,7 +71,6 @@ brew test ekarulf/tap/qcat
 brew test ekarulf/tap/keystone
 ```
 
-CI builds and tests qcat on Apple Silicon macOS and Linux, tests Keystone on
-Apple Silicon macOS, and runs the patched qcat Go tests with hardware tests
-explicitly disabled. No test initializes a real Secure Enclave identity or
-contacts a cloud account. Hardware and cloud end-to-end validation are separate.
+CI tests qcat on Apple Silicon macOS and Linux, and Keystone on Apple Silicon
+macOS. qcat helper-layout tests use a fake protocol helper. Hardware identity and
+cloud end-to-end tests are not run.

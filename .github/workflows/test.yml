@@ -52,11 +52,13 @@ jobs:
             brew audit --strict ekarulf/tap/keystone
             brew test ekarulf/tap/keystone
           fi
-      - name: Test patched qcat source without hardware identities
+      - name: Test qcat release source without hardware identities
         shell: bash
         run: |
-          brew unpack --patch --destdir="$RUNNER_TEMP/qcat-source" ekarulf/tap/qcat
-          cd "$RUNNER_TEMP/qcat-source/qcat-0.0.5"
+          brew unpack --destdir="$RUNNER_TEMP/qcat-source" ekarulf/tap/qcat
+          sources=("$RUNNER_TEMP/qcat-source"/qcat-*)
+          test "${#sources[@]}" -eq 1
+          cd "${sources[0]}"
           go mod verify
           go vet -mod=readonly ./...
           go test -mod=readonly -race -timeout 10m ./...
