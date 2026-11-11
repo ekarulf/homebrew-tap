@@ -20,8 +20,8 @@ The formulae use checksummed releases and do not pin your installed versions.
 
 ## Requirements
 
-- **qcat:** Linux, or Apple Silicon with macOS 26+ and Apple's command-line tools
-  with a macOS 26+ SDK. Builds from the upstream release using Go. No tap patch.
+- **qcat:** Linux AMD64/ARM64, or Apple Silicon with macOS 26+. Installs the
+  official release binaries. No Go, Swift, or Xcode build is required.
 - **keystone:** Apple Silicon macOS. Installs the official release binary.
 
 Installation does not create identities, enroll devices, change credentials or
@@ -71,6 +71,7 @@ brew test ekarulf/tap/qcat
 brew test ekarulf/tap/keystone
 ```
 
-CI tests qcat on Apple Silicon macOS and Linux, and Keystone on Apple Silicon
-macOS. qcat helper-layout tests use a fake protocol helper. Hardware identity and
-cloud end-to-end tests are not run.
+CI installs and tests qcat on Apple Silicon macOS and Linux AMD64/ARM64, verifies
+that the installed binaries match the release archives, and tests Keystone on
+Apple Silicon macOS. qcat helper-layout tests use a fake protocol helper. Hardware
+identity and cloud end-to-end tests are not run.
